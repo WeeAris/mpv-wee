@@ -75,7 +75,7 @@ function create_select_tracklist_type_menu_opener(menu_title, track_type, track_
 
 		if load_command then
 			items[#items + 1] = {
-				title = 'Load', bold = true, italic = true, hint = 'open file', value = '{load}', separator = true,
+				title = '加载', bold = true, italic = true, hint = '打开文件', value = '{load}', separator = true,
 			}
 		end
 
@@ -89,7 +89,7 @@ function create_select_tracklist_type_menu_opener(menu_title, track_type, track_
 		-- If I'm mistaken and there is an active need for this, feel free to
 		-- open an issue.
 		if track_type == 'sub' then
-			disabled_item = {title = 'Disabled', italic = true, muted = true, hint = '—', value = nil, active = true}
+			disabled_item = {title = '停用', italic = true, muted = true, hint = '—', value = nil, active = true}
 			items[#items + 1] = disabled_item
 		end
 
@@ -182,7 +182,7 @@ function open_file_navigation_menu(directory_path, handle_select, opts)
 			items[#items + 1] = {title = '..', hint = 'Drives', value = '{drives}', separator = true}
 		end
 	else
-		items[#items + 1] = {title = '..', hint = 'parent dir', value = directory.dirname, separator = true}
+		items[#items + 1] = {title = '..', hint = '上级文件夹', value = directory.dirname, separator = true}
 	end
 
 	local back_path = items[#items] and items[#items].value
