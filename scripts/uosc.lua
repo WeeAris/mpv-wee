@@ -134,33 +134,33 @@ fgt, bgt = serialize_rgba(options.foreground_text).color, serialize_rgba(options
 
 function create_default_menu()
 	return {
-		{title = 'Subtitles', value = 'script-binding uosc/subtitles'},
-		{title = 'Audio tracks', value = 'script-binding uosc/audio'},
-		{title = 'Stream quality', value = 'script-binding uosc/stream-quality'},
-		{title = 'Playlist', value = 'script-binding uosc/items'},
-		{title = 'Chapters', value = 'script-binding uosc/chapters'},
-		{title = 'Navigation', items = {
-			{title = 'Next', hint = 'playlist or file', value = 'script-binding uosc/next'},
-			{title = 'Prev', hint = 'playlist or file', value = 'script-binding uosc/prev'},
-			{title = 'Delete file & Next', value = 'script-binding uosc/delete-file-next'},
-			{title = 'Delete file & Prev', value = 'script-binding uosc/delete-file-prev'},
-			{title = 'Delete file & Quit', value = 'script-binding uosc/delete-file-quit'},
-			{title = 'Open file', value = 'script-binding uosc/open-file'},
+		{title = '字幕', value = 'script-binding uosc/subtitles'},
+		{title = '音轨', value = 'script-binding uosc/audio'},
+		{title = '流媒体质量', value = 'script-binding uosc/stream-quality'},
+		{title = '播放列表', value = 'script-binding uosc/items'},
+		{title = '章节', value = 'script-binding uosc/chapters'},
+		{title = '导航', items = {
+			{title = '下一个', hint = '播放列表或文件', value = 'script-binding uosc/next'},
+			{title = '上一个', hint = '播放列表或文件', value = 'script-binding uosc/prev'},
+			{title = '删除并播放下一个', value = 'script-binding uosc/delete-file-next'},
+			{title = '删除并播放上一个', value = 'script-binding uosc/delete-file-prev'},
+			{title = '删除文件并退出', value = 'script-binding uosc/delete-file-quit'},
+			{title = '打开文件', value = 'script-binding uosc/open-file'},
 		},},
-		{title = 'Utils', items = {
-			{title = 'Aspect ratio', items = {
-				{title = 'Default', value = 'set video-aspect-override "-1"'},
+		{title = '工具', items = {
+			{title = '画面比例', items = {
+				{title = '默认值', value = 'set video-aspect-override "-1"'},
 				{title = '16:9', value = 'set video-aspect-override "16:9"'},
 				{title = '4:3', value = 'set video-aspect-override "4:3"'},
 				{title = '2.35:1', value = 'set video-aspect-override "2.35:1"'},
 			},},
-			{title = 'Audio devices', value = 'script-binding uosc/audio-device'},
-			{title = 'Editions', value = 'script-binding uosc/editions'},
-			{title = 'Screenshot', value = 'async screenshot'},
-			{title = 'Show in directory', value = 'script-binding uosc/show-in-directory'},
-			{title = 'Open config folder', value = 'script-binding uosc/open-config-directory'},
+			{title = '音频设备', value = 'script-binding uosc/audio-device'},
+			{title = '版本', value = 'script-binding uosc/editions'},
+			{title = '截图', value = 'async screenshot'},
+			{title = '在文件夹中查看', value = 'script-binding uosc/show-in-directory'},
+			{title = '打开配置文件目录', value = 'script-binding uosc/open-config-directory'},
 		},},
-		{title = 'Quit', value = 'quit'},
+		{title = '退出', value = 'quit'},
 	}
 end
 
@@ -826,21 +826,21 @@ for _, loader in ipairs(track_loaders) do
 		open_file_navigation_menu(
 			path,
 			function(path) mp.commandv(loader.prop .. '-add', path) end,
-			{type = menu_type, title = 'Load ' .. loader.name, allowed_types = loader.allowed_types}
+			{type = menu_type, title = '加载 ' .. loader.name, allowed_types = loader.allowed_types}
 		)
 	end)
 end
 bind_command('subtitles', create_select_tracklist_type_menu_opener(
-	'Subtitles', 'sub', 'sid', 'script-binding uosc/load-subtitles'
+	'字幕', 'sub', 'sid', 'script-binding uosc/load-subtitles'
 ))
 bind_command('audio', create_select_tracklist_type_menu_opener(
-	'Audio', 'audio', 'aid', 'script-binding uosc/load-audio'
+	'音频', 'audio', 'aid', 'script-binding uosc/load-audio'
 ))
 bind_command('video', create_select_tracklist_type_menu_opener(
-	'Video', 'video', 'vid', 'script-binding uosc/load-video'
+	'视频', 'video', 'vid', 'script-binding uosc/load-video'
 ))
 bind_command('playlist', create_self_updating_menu_opener({
-	title = 'Playlist',
+	title = '播放列表',
 	type = 'playlist',
 	list_prop = 'playlist',
 	serializer = function(playlist)
@@ -860,7 +860,7 @@ bind_command('playlist', create_self_updating_menu_opener({
 	on_select = function(index) mp.commandv('set', 'playlist-pos-1', tostring(index)) end,
 }))
 bind_command('chapters', create_self_updating_menu_opener({
-	title = 'Chapters',
+	title = '章节',
 	type = 'chapters',
 	list_prop = 'chapter-list',
 	active_prop = 'chapter',
@@ -880,7 +880,7 @@ bind_command('chapters', create_self_updating_menu_opener({
 	on_select = function(index) mp.commandv('set', 'chapter', tostring(index - 1)) end,
 }))
 bind_command('editions', create_self_updating_menu_opener({
-	title = 'Editions',
+	title = '版本',
 	type = 'editions',
 	list_prop = 'edition-list',
 	active_prop = 'current-edition',
@@ -926,7 +926,7 @@ bind_command('stream-quality', function()
 		items[#items + 1] = {title = height .. 'p', value = format, active = format == ytdl_format}
 	end
 
-	Menu:open({type = 'stream-quality', title = 'Stream quality', items = items}, function(format)
+	Menu:open({type = 'stream-quality', title = '流媒体质量', items = items}, function(format)
 		mp.set_property('ytdl-format', format)
 
 		-- Reload the video to apply new format
@@ -1056,7 +1056,7 @@ bind_command('delete-file-quit', function()
 	mp.command('quit')
 end)
 bind_command('audio-device', create_self_updating_menu_opener({
-	title = 'Audio devices',
+	title = '音频设备',
 	type = 'audio-device-list',
 	list_prop = 'audio-device-list',
 	active_prop = 'audio-device',
