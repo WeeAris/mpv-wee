@@ -12,7 +12,7 @@ function open_command_menu(data, opts)
 	---@type MenuOptions
 	local menu_opts = {}
 	if opts then
-		menu_opts.submenu, menu_opts.mouse_nav = opts.submenu, opts.mouse_nav
+		menu_opts.mouse_nav = opts.mouse_nav
 		if opts.on_close then menu_opts.on_close = function() run_command(opts.on_close) end end
 	end
 	local menu = Menu:open(data, run_command, menu_opts)
@@ -77,7 +77,7 @@ function create_select_tracklist_type_menu_opener(menu_title, track_type, track_
 
 		if load_command then
 			items[#items + 1] = {
-				title = '加载', bold = true, italic = true, hint = '打开文件', value = '{load}', separator = true,
+				title = t('加载'), bold = true, italic = true, hint = t('打开文件'), value = '{load}', separator = true,
 			}
 		end
 
@@ -91,7 +91,7 @@ function create_select_tracklist_type_menu_opener(menu_title, track_type, track_
 		-- If I'm mistaken and there is an active need for this, feel free to
 		-- open an issue.
 		if track_type == 'sub' then
-			disabled_item = {title = '停用', italic = true, muted = true, hint = '—', value = nil, active = true}
+			disabled_item = {title = t('已禁用'), italic = true, muted = true, hint = '—', value = nil, active = true}
 			items[#items + 1] = disabled_item
 		end
 
@@ -106,14 +106,14 @@ function create_select_tracklist_type_menu_opener(menu_title, track_type, track_
 				end
 				if track['demux-fps'] then h(string.format('%.5gfps', track['demux-fps'])) end
 				h(track.codec)
-				if track['audio-channels'] then h(track['audio-channels'] .. ' channels') end
+				if track['audio-channels'] then h(t(track['audio-channels'] == 1 and '%s channel' or '%s channels', track['audio-channels'])) end
 				if track['demux-samplerate'] then h(string.format('%.3gkHz', track['demux-samplerate'] / 1000)) end
-				if track.forced then h('forced') end
-				if track.default then h('default') end
-				if track.external then h('external') end
+				if track.forced then h(t('指定')) end
+				if track.default then h(t('默认')) end
+				if track.external then h(t('外置')) end
 
 				items[#items + 1] = {
-					title = (track.title and track.title or 'Track ' .. track.id),
+					title = (track.title and track.title or t('轨道 %s', track.id)),
 					hint = table.concat(hint_values, ', '),
 					value = track.id,
 					active = track.selected,
@@ -180,11 +180,11 @@ function open_file_navigation_menu(directory_path, handle_select, opts)
 	local items = {}
 
 	if is_root then
-		if state.os == 'windows' then
-			items[#items + 1] = {title = '..', hint = 'Drives', value = '{drives}', separator = true}
+		if state.platform == 'windows' then
+			items[#items + 1] = {title = '..', hint = t('驱动器'), value = '{drives}', separator = true}
 		end
 	else
-		items[#items + 1] = {title = '..', hint = '上级文件夹', value = directory.dirname, separator = true}
+		items[#items + 1] = {title = '..', hint = t('父文件夹'), value = directory.dirname, separator = true}
 	end
 
 	local back_path = items[#items] and items[#items].value
@@ -276,7 +276,7 @@ function open_drives_menu(handle_select, opts)
 			if drive then
 				local drive_path = normalize_path(drive)
 				items[#items + 1] = {
-					title = drive, hint = 'drive', value = drive_path, active = opts.active_path == drive_path,
+					title = drive, hint = t('驱动器'), value = drive_path, active = opts.active_path == drive_path,
 				}
 				if opts.selected_path == drive_path then selected_index = #items end
 			end
@@ -286,7 +286,7 @@ function open_drives_menu(handle_select, opts)
 	end
 
 	return Menu:open(
-		{type = opts.type, title = opts.title or 'Drives', items = items, selected_index = selected_index},
+		{type = opts.type, title = opts.title or t('驱动器'), items = items, selected_index = selected_index},
 		handle_select
 	)
 end

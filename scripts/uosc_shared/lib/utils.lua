@@ -5,7 +5,7 @@ sort_filenames = (function()
 	local symbol_order
 	local default_order
 
-	if state.os == 'windows' then
+	if state.platform == 'windows' then
 		symbol_order = {
 			['!'] = 1, ['#'] = 2, ['$'] = 3, ['%'] = 4, ['&'] = 5, ['('] = 6, [')'] = 6, [','] = 7,
 			['.'] = 8, ["'"] = 9, ['-'] = 10, [';'] = 11, ['@'] = 12, ['['] = 13, [']'] = 13, ['^'] = 14,
@@ -93,6 +93,85 @@ function get_point_to_rectangle_proximity(point, rect)
 	return math.sqrt(dx * dx + dy * dy)
 end
 
+---@param point_a {x: number; y: number}
+---@param point_b {x: number; y: number}
+function get_point_to_point_proximity(point_a, point_b)
+	local dx, dy = point_a.x - point_b.x, point_a.y - point_b.y
+	return math.sqrt(dx * dx + dy * dy)
+end
+
+---@param lax number
+---@param lay number
+---@param lbx number
+---@param lby number
+---@param max number
+---@param may number
+---@param mbx number
+---@param mby number
+function get_line_to_line_intersection(lax, lay, lbx, lby, max, may, mbx, mby)
+	-- Calculate the direction of the lines
+	local uA = ((mbx-max)*(lay-may) - (mby-may)*(lax-max)) / ((mby-may)*(lbx-lax) - (mbx-max)*(lby-lay))
+	local uB = ((lbx-lax)*(lay-may) - (lby-lay)*(lax-max)) / ((mby-may)*(lbx-lax) - (mbx-max)*(lby-lay))
+
+	-- If uA and uB are between 0-1, lines are colliding
+	if uA >= 0 and uA <= 1 and uB >= 0 and uB <= 1 then
+		return lax + (uA * (lbx-lax)), lay + (uA * (lby-lay))
+	end
+
+	return nil, nil
+end
+
+-- Returns distance from the start of a finite ray assumed to be at (rax, ray)
+-- coordinates to a line.
+---@param rax number
+---@param ray number
+---@param rbx number
+---@param rby number
+---@param lax number
+---@param lay number
+---@param lbx number
+---@param lby number
+function get_ray_to_line_distance(rax, ray, rbx, rby, lax, lay, lbx, lby)
+	local x, y = get_line_to_line_intersection(rax, ray, rbx, rby, lax, lay, lbx, lby)
+	if x then
+		return math.sqrt((rax - x) ^ 2 + (ray - y) ^ 2)
+	end
+	return nil
+end
+
+-- Returns distance from the start of a finite ray assumed to be at (ax, ay)
+-- coordinates to a rectangle. Returns `0` if ray originates inside rectangle.
+---@param  ax number
+---@param  ay number
+---@param  bx number
+---@param  by number
+---@param  rect {ax: number; ay: number; bx: number; by: number}
+---@return number|nil
+function get_ray_to_rectangle_distance(ax, ay, bx, by, rect)
+	-- Is inside
+	if ax >= rect.ax and ax <= rect.bx and ay >= rect.ay and ay <= rect.by then
+		return 0
+	end
+
+	local closest = nil
+
+	local function updateDistance(distance)
+		if distance and (not closest or distance < closest) then closest = distance end
+	end
+
+	updateDistance(get_ray_to_line_distance(ax, ay, bx, by, rect.ax, rect.ay, rect.bx, rect.ay))
+	updateDistance(get_ray_to_line_distance(ax, ay, bx, by, rect.bx, rect.ay, rect.bx, rect.by))
+	updateDistance(get_ray_to_line_distance(ax, ay, bx, by, rect.ax, rect.by, rect.bx, rect.by))
+	updateDistance(get_ray_to_line_distance(ax, ay, bx, by, rect.ax, rect.ay, rect.ax, rect.by))
+
+	return closest
+end
+
+-- Call function with args if it exists
+function call_maybe(fn, ...)
+	if type(fn) == 'function' then fn(...) end
+end
+
 -- Extracts the properties used by property expansion of that string.
 ---@param str string
 ---@param res { [string] : boolean } | nil
@@ -155,7 +234,7 @@ function opacity_to_alpha(opacity)
 end
 
 path_separator = (function()
-	local os_separator = state.os == 'windows' and '\\' or '/'
+	local os_separator = state.platform == 'windows' and '\\' or '/'
 
 	-- Get appropriate path separator for the given path.
 	---@param path string
@@ -181,7 +260,7 @@ end
 ---@return boolean
 function is_absolute(path)
 	if path:sub(1, 2) == '\\\\' then return true
-	elseif state.os == 'windows' then return path:find('^%a+:') ~= nil
+	elseif state.platform == 'windows' then return path:find('^%a+:') ~= nil
 	else return path:sub(1, 1) == '/' end
 end
 
@@ -199,7 +278,7 @@ end
 function trim_trailing_separator(path)
 	local separator = path_separator(path)
 	path = trim_end(path, separator)
-	if state.os == 'windows' then
+	if state.platform == 'windows' then
 		-- Drive letters on windows need trailing backslash
 		if path:sub(#path) == ':' then path = path .. '\\' end
 	else
@@ -226,12 +305,12 @@ function normalize_path(path)
 
 	path = ensure_absolute(path)
 	local is_unc = path:sub(1, 2) == '\\\\'
-	if state.os == 'windows' or is_unc then path = path:gsub('/', '\\') end
+	if state.platform == 'windows' or is_unc then path = path:gsub('/', '\\') end
 	path = trim_trailing_separator(path)
 
 	--Deduplication of path separators
 	if is_unc then path = path:gsub('(.\\)\\+', '%1')
-	elseif state.os == 'windows' then path = path:gsub('\\\\+', '\\')
+	elseif state.platform == 'windows' then path = path:gsub('\\\\+', '\\')
 	else path = path:gsub('//+', '/') end
 
 	return path
@@ -338,28 +417,39 @@ end
 
 -- Navigates in a list, using delta or, when `state.shuffle` is enabled,
 -- randomness to determine the next item. Loops around if `loop-playlist` is enabled.
----@param list table
+---@param paths table
 ---@param current_index number
 ---@param delta number
-function decide_navigation_in_list(list, current_index, delta)
-	if #list < 2 then return #list, list[#list] end
+function decide_navigation_in_list(paths, current_index, delta)
+	if #paths < 2 then return #paths, paths[#paths] end
 
+	-- Shuffle looks at the played files history trimmed to 80% length of the paths
+	-- and removes all paths in it from the potential shuffle pool. This guarantees
+	-- no path repetition until at least 80% of the playlist has been exhausted.
 	if state.shuffle then
-		local new_index = current_index
+		local trimmed_history = itable_slice(state.history, -math.floor(#paths * 0.8))
+		local shuffle_pool = {}
+
+		for index, value in ipairs(paths) do
+			if not itable_has(trimmed_history, value) then
+				shuffle_pool[#shuffle_pool + 1] = index
+			end
+		end
+
 		math.randomseed(os.time())
-		while current_index == new_index do new_index = math.random(#list) end
-		return new_index, list[new_index]
+		local next_index = shuffle_pool[math.random(#shuffle_pool)]
+		return next_index, paths[next_index]
 	end
 
 	local new_index = current_index + delta
 	if mp.get_property_native('loop-playlist') then
-		if new_index > #list then new_index = new_index % #list
-		elseif new_index < 1 then new_index = #list - new_index end
-	elseif new_index < 1 or new_index > #list then
+		if new_index > #paths then new_index = new_index % #paths
+		elseif new_index < 1 then new_index = #paths - new_index end
+	elseif new_index < 1 or new_index > #paths then
 		return
 	end
 
-	return new_index, list[new_index]
+	return new_index, paths[new_index]
 end
 
 ---@param delta number
@@ -377,7 +467,8 @@ end
 function navigate_playlist(delta)
 	local playlist, pos = mp.get_property_native('playlist'), mp.get_property_native('playlist-pos-1')
 	if playlist and #playlist > 1 and pos then
-		local index = decide_navigation_in_list(playlist, pos, delta)
+		local paths = itable_map(playlist, function(item) return normalize_path(item.filename) end)
+		local index = decide_navigation_in_list(paths, pos, delta)
 		if index then mp.commandv('playlist-play-index', index - 1) return true end
 	end
 	return false
@@ -393,7 +484,7 @@ end
 -- `status:number(<0=error), stdout, stderr, error_string, killed_by_us:boolean`
 ---@param path string
 function delete_file(path)
-	if state.os == 'windows' then
+	if state.platform == 'windows' then
 		if options.use_trash then
 			local ps_code = [[
 				Add-Type -AssemblyName Microsoft.VisualBasic
@@ -428,10 +519,23 @@ end
 function serialize_chapter_ranges(normalized_chapters)
 	local ranges = {}
 	local simple_ranges = {
-		{name = 'openings', patterns = {'^op ', '^op$', ' op$', 'opening$'}, requires_next_chapter = true},
-		{name = 'intros', patterns = {'^intro$'}, requires_next_chapter = true},
-		{name = 'endings', patterns = {'^ed ', '^ed$', ' ed$', 'ending$', 'closing$'}},
-		{name = 'outros', patterns = {'^outro$'}},
+		{name = 'openings', patterns = {
+				'^op ', '^op$', ' op$',
+				'^opening$', ' opening$'
+			}, requires_next_chapter = true},
+		{name = 'intros', patterns = {
+				'^intro$', ' intro$',
+				'^avant$', '^prologue$'
+			}, requires_next_chapter = true},
+		{name = 'endings', patterns = {
+				'^ed ', '^ed$', ' ed$',
+				'^ending ', '^ending$', ' ending$',
+			}},
+		{name = 'outros', patterns = {
+				'^outro$', ' outro$',
+				'^closing$', '^closing ',
+				'^preview$', '^pv$',
+			}},
 	}
 	local sponsor_ranges = {}
 
@@ -455,7 +559,7 @@ function serialize_chapter_ranges(normalized_chapters)
 					if next_chapter or not meta.requires_next_chapter then
 						ranges[#ranges + 1] = table_assign({
 							start = chapter.time,
-							['end'] = next_chapter and next_chapter.time or infinity,
+							['end'] = next_chapter and next_chapter.time or INFINITY,
 						}, config.chapter_ranges[meta.name])
 					end
 				end
@@ -484,7 +588,7 @@ function serialize_chapter_ranges(normalized_chapters)
 				local next_chapter = chapters[i + 1]
 				ranges[#ranges + 1] = table_assign({
 					start = chapter.time,
-					['end'] = next_chapter and next_chapter.time or infinity,
+					['end'] = next_chapter and next_chapter.time or INFINITY,
 				}, config.chapter_ranges.ads)
 			end
 		end
@@ -514,7 +618,11 @@ function normalize_chapters(chapters)
 	table.sort(chapters, function(a, b) return a.time < b.time end)
 	-- Ensure titles
 	for index, chapter in ipairs(chapters) do
-		chapter.title = chapter.title or ('Chapter ' .. index)
+		local chapter_number = chapter.title and string.match(chapter.title, '^Chapter (%d+)$')
+		if chapter_number then
+			chapter.title = t('章节 %s', tonumber(chapter_number))
+		end
+		chapter.title = chapter.title ~= '(unnamed)' and chapter.title ~= '' and chapter.title or t('章节 %s', index)
 		chapter.lowercase_title = chapter.title:lower()
 	end
 	return chapters
@@ -540,6 +648,8 @@ function render()
 	if not display.initialized then return end
 	state.render_last_time = mp.get_time()
 
+	cursor.reset_handlers()
+
 	-- Actual rendering
 	local ass = assdraw.ass_new()
 
@@ -552,6 +662,8 @@ function render()
 			end
 		end
 	end
+
+	cursor.decide_keybinds()
 
 	-- submit
 	if osd.res_x == display.width and osd.res_y == display.height and osd.data == ass.text then
